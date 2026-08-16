@@ -324,6 +324,7 @@
       const GITHUB_ZIP_FILE_NAME = "data/result.zip";
 
       async function dataSownLoad() {
+        console.log("dataSownLoad 1");
         try {
           // 💡【核心】同じリポジトリ内にあるZIPファイルを相対パスで直接高速ダウンロード（バイナリ取得）
           const response = await fetch(GITHUB_ZIP_FILE_NAME);
@@ -332,13 +333,19 @@
               "GitHubからのファイル取得に失敗しました。ファイルが同階層にアップロードされているか確認してください。",
             );
 
+          console.log("dataSownLoad 2");
+
           const zipBlob = await response.blob();
           statusDiv.innerHTML =
             "3. ファイルの取得完了。指定フォルダ直下へ自動解凍中...";
 
+          console.log("dataSownLoad 3");
+
           // JSZipライブラリを使って、ブラウザ内でZIPの中身を展開
           const zip = new JSZip();
           const unzippedData = await zip.loadAsync(zipBlob);
+
+          console.log("dataSownLoad 4");
 
           // 解凍されたファイルを、選ばれたローカルフォルダ内に1つずつ直接書き込む
           for (const relativePath in unzippedData.files) {
