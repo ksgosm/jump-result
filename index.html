@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>スキージャンプ結果検索</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   </head>
   <body>
     <!-- データ保存フォルダ選択ボタン -->
@@ -317,65 +318,130 @@
       const searchBtn = document.getElementById("searchBtn");
 
       // 「フォルダを選択」ボタンが押されたら、本物のボタンを代わりにクリックする
-      customBtn.addEventListener("click", () => {
-        folderInput.click();
-      });
+      //customBtn.addEventListener("click", () => {
+      //  folderInput.click();
+      //});
 
       const GITHUB_ZIP_FILE_NAME = "data/result.zip";
+      //const GITHUB_ZIP_FILE_NAME = "data/version.txt";
 
-      async function dataSownLoad() {
+      let directoryHandle;
+
+      async function dataDownLoad() {
+        //    const statusDiv = document.getElementById('status');
+        // statusDiv.className = '';
         console.log("dataSownLoad 1");
-        try {
-          // 💡【核心】同じリポジトリ内にあるZIPファイルを相対パスで直接高速ダウンロード（バイナリ取得）
-          const response = await fetch(GITHUB_ZIP_FILE_NAME);
-          if (!response.ok)
-            throw new Error(
-              "GitHubからのファイル取得に失敗しました。ファイルが同階層にアップロードされているか確認してください。",
+
+        return new Promise((resolve, reject) => {
+          //  statusDiv.innerHTML = "2. サーバーから最新の圧縮ファイルを取得中...";
+          console.log("dataDownload 1: 通信開始");
+
+          // 💡 フリーズの原因だった fetch と arrayBuffer() を完全に廃止し、
+          // 最もフリーズが起きない伝統的な通信方式(XMLHttpRequest)でバイナリデータを取得します
+          const xhr = new XMLHttpRequest();
+          xhr.open(
+            "GET",
+            GITHUB_ZIP_FILE_NAME + "?t=" + new Date().getTime(),
+            true,
+          ); // キャッシュ対策のパラメータ付き
+          xhr.responseType = "arraybuffer"; // 💡最初からフリーズなしで arraybuffer として受け取る指定
+
+          xhr.onload = async function () {
+            console.log("dataDownload 2: ステータス確認", xhr.status);
+
+            if (xhr.status !== 200) {
+              statusDiv.className = "error";
+              statusDiv.innerHTML = `ファイル取得に失敗しました。ステータスコード: ${xhr.status}\n同じフォルダ内に「${LOCAL_ZIP_FILE_NAME}」があるか確認してください。`;
+              // ❌ 失敗した時も待機を解除する
+              reject(new Error(`ステータスコード: ${xhr.status}`));
+              return;
+            }
+
+            // 💡 既にフリーズなしで安全にデータが格納されています
+            const zipBuffer = xhr.response;
+            console.log(
+              "dataDownload 3: バイナリデータの取得成功。バイト数:",
+              zipBuffer.byteLength,
             );
 
-          console.log("dataSownLoad 2");
+            //  statusDiv.innerHTML =
+            //    "3. ファイルのダウンロード完了。指定フォルダ直下へ自動解凍中...";
 
-          const zipBlob = await response.blob();
-          statusDiv.innerHTML =
-            "3. ファイルの取得完了。指定フォルダ直下へ自動解凍中...";
+            try {
+              // JSZipライブラリを使ってブラウザ内で展開
+              const zip = new JSZip();
+              const unzippedData = await zip.loadAsync(zipBuffer);
 
-          console.log("dataSownLoad 3");
+              let fileCount = 0;
+              for (const relativePath in unzippedData.files) {
+                const zipEntry = unzippedData.files[relativePath];
 
-          // JSZipライブラリを使って、ブラウザ内でZIPの中身を展開
-          const zip = new JSZip();
-          const unzippedData = await zip.loadAsync(zipBlob);
+                if (!zipEntry.dir) {
+                  // 💡 解決策: 先頭がドットで始まる隠しファイルや、Mac特有の不要なシステムファイルを無視する
+                  if (
+                    zipEntry.name.startsWith(".") ||
+                    zipEntry.name.includes("__MACOSX")
+                  ) {
+                    console.log(
+                      `システムファイルのためスキップしました: ${zipEntry.name}`,
+                    );
+                    continue; // 保存せずに次のファイルへ進む
+                  }
+                  const fileBlob = await zipEntry.async("blob");
 
-          console.log("dataSownLoad 4");
+                  // 選択されたフォルダ内に同名ファイルを作成・上書き
+                  const fileHandle = await directoryHandle.getFileHandle(
+                    zipEntry.name,
+                    { create: true },
+                  );
+                  const writable = await fileHandle.createWritable();
+                  await writable.write(fileBlob);
+                  await writable.close();
+                  fileCount++;
+                }
+              }
 
-          // 解凍されたファイルを、選ばれたローカルフォルダ内に1つずつ直接書き込む
-          for (const relativePath in unzippedData.files) {
-            const zipEntry = unzippedData.files[relativePath];
+              //  statusDiv.className = "success";
+              //  statusDiv.innerHTML = `【完了】\n選択したフォルダの中に、すべてのファイル（計 ${fileCount} 件）を直接解凍・保存しました！`;
+              console.log("dataDownload 4: すべての処理が正常完了しました");
 
-            // ディレクトリではなくファイルの場合のみ書き込みを実行
-            if (!zipEntry.dir) {
-              const fileBlob = await zipEntry.async("blob");
-
-              // 指定されたフォルダ内に同名のファイルを作成・または上書きする
-              const fileHandle = await directoryHandle.getFileHandle(
-                zipEntry.name,
-                { create: true },
-              );
-              const writable = await fileHandle.createWritable();
-              await writable.write(fileBlob);
-              await writable.close();
+              // ========================================================
+              // 💡 完了通知！ これを呼ぶことで、ボタン側の「await dataDownLoad()」の
+              // 一時停止が解除され、次のラジオボタン非表示などの処理へ進みます。
+              // ========================================================
+              resolve();
+            } catch (unzipErr) {
+              //  statusDiv.className = "error";
+              //  statusDiv.innerHTML =
+              //    "解凍または書き込み処理中にエラーが発生しました:\n" +
+              //    unzipErr.message;
+              console.error("エラー詳細:", unzipErr);
+              // ❌ 解凍エラーの時も待機を解除する
+              reject(unzipErr);
             }
-          }
-        } catch (fileErr) {
-          //    statusDiv.className = 'error';
-          //    statusDiv.innerHTML = 'ファイルのダウンロードまたは保存に失敗しました:\n' + fileErr.message + '\n\n※ブラウザ上部に出る「ファイルの変更権限の許>可」を必ず承認してください。';
-        }
+          };
+
+          xhr.onerror = function () {
+            //  statusDiv.className = "error";
+            //  statusDiv.innerHTML = "通信エラーが発生しました。";
+            console.error("XHR通信エラー");
+            reject(new Error("ネットワークエラーが発生しました。"));
+          };
+
+          xhr.send();
+        });
       }
 
       // フォルダが選択時の処理
       // 選択されたフォルダ内のファイルのリストを取得
-      folderInput.addEventListener("change", (event) => {
+      //  folderInput.addEventListener("change", (event) => {
+      customBtn.addEventListener("click", async (event) => {
+        directoryHandle = await window.showDirectoryPicker({
+          mode: "readwrite",
+        });
+
         // ファイルダウンロード
-        dataSownLoad();
+        await dataDownLoad();
 
         // option3ラジオボタンを非表示
         radioArea3.style.display = "none";
@@ -417,13 +483,23 @@
         });
         radioArea2.style.display = "block";
 
-        const files = event.target.files;
-        if (files.length === 0) return;
-
+        // 💡 showDirectoryPicker用の正しいファイル一覧取得処理
         const filePaths = [];
-        for (let i = 0; i < files.length; i++) {
-          filePaths.push(files[i].webkitRelativePath);
+
+        // フォルダ内を非同期でループ処理し、ファイル名を集める
+        for await (const entry of directoryHandle.values()) {
+          if (entry.kind === "file") {
+            filePaths.push(entry.name);
+          }
         }
+
+        //  const files = event.target.files;
+        //  if (files.length === 0) return;
+
+        //  const filePaths = [];
+        //  for (let i = 0; i < files.length; i++) {
+        //    filePaths.push(files[i].webkitRelativePath);
+        //  }
 
         // 選択された全ファイルのリストをそのまま保存
         window.selectedFiles = event.target.files;
@@ -468,7 +544,7 @@
 
       // option2ラジオボタンを変更した場合の処理
       document.getElementsByName("option2").forEach((radio) => {
-        radio.addEventListener("change", (e) => {
+        radio.addEventListener("change", async (e) => {
           // option2 選択項目取得
           const select_option = document.querySelector(
             'input[name="option2"]:checked',
@@ -523,47 +599,66 @@
             ).value;
 
             // 大会選択ボックス表示
-            Array.from(window.selectedFiles).forEach((file) => {
-              if (file.name === COMPETITION_FILE_NAME) {
-                const reader = new FileReader();
+            try {
+              // 1. 保存してあるフォルダ（directoryHandle）から直接ファイルを取得
+              const fileHandle = await directoryHandle.getFileHandle(
+                COMPETITION_FILE_NAME,
+              );
 
-                reader.onload = (e) => {
-                  const content = e.target.result;
+              // 2. ファイルオブジェクトを取得
+              const file = await fileHandle.getFile();
 
-                  // 改行で分割して配列にする
-                  const lines = content.split("\n");
+              // 3. FileReaderを使わずに、直接テキスト（UTF-8）として読み込む
+              const content = await file.text();
 
-                  compSelectBox.innerHTML =
-                    '<option value="">-- 大会名を選択してください --</option>';
+              // ==========================================
+              // ここから下は元々書いていただいた解析ロジックをそのまま活用
+              // ==========================================
 
-                  let index = 0;
-                  // 1行ずつ順番に処理を実行
-                  lines.forEach((line) => {
-                    if (index === 0) {
-                      index = index + 1;
-                      return;
-                    }
+              // 改行で分割して配列にする
+              const lines = content.split("\n");
 
-                    index = index + 1;
+              compSelectBox.innerHTML =
+                '<option value="">-- 大会名を選択してください --</option>';
 
-                    if (!line.trim()) return;
+              let index = 0;
+              // 1行ずつ順番に処理を実行
+              lines.forEach((line) => {
+                if (index === 0) {
+                  index = index + 1;
+                  return;
+                }
 
-                    const cols = line.split(",");
-                    if (cols[3] !== option1Value) return;
+                index = index + 1;
 
-                    const text = cols[0].trim() + " " + cols[1].trim(); // 1列目
-                    const value = cols[1].trim();
+                if (!line.trim()) return;
 
-                    const option = document.createElement("option");
-                    option.value = value;
-                    option.textContent = text;
-                    compSelectBox.appendChild(option);
-                  });
-                  compSelectBox.style.display = "block";
-                };
-                reader.readAsText(file, "UTF-8");
+                const cols = line.split(",");
+                if (cols[3] !== option1Value) return;
+
+                const text = cols[0].trim() + " " + cols[1].trim(); // 1列目
+                const value = cols[1].trim();
+
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = text;
+                compSelectBox.appendChild(option);
+              });
+
+              // セレクトボックスを表示
+              compSelectBox.style.display = "block";
+            } catch (err) {
+              if (err.name === "NotFoundError") {
+                console.error(
+                  `ファイルが見つかりません: ${COMPETITION_FILE_NAME}`,
+                );
+                alert(
+                  `フォルダ内に「${COMPETITION_FILE_NAME}」が存在しません。`,
+                );
+              } else {
+                console.error("ファイル読み込みエラー:", err);
               }
-            });
+            }
           }
         });
       });
@@ -591,7 +686,8 @@
 
       // option3ラジオボタンを変更した場合の処理
       document.getElementsByName("option3").forEach((radio) => {
-        radio.addEventListener("change", (e) => {
+        // 💡 修正ポイント：await を使うために先頭に「async」を追加
+        radio.addEventListener("change", async (e) => {
           // 検索ボタンを非表示
           searchBtn.style.display = "none";
           // 表を非表示
@@ -615,50 +711,69 @@
             // 選手リストファイル名取得
             csvFile = getPlayerList(option1);
 
-            Array.from(window.selectedFiles).forEach((file) => {
-              if (file.name === csvFile) {
-                const reader = new FileReader();
+            // ==========================================
+            // 💡 修正ポイント：FileReader を使わず、directoryHandle から直接読み込む
+            // ==========================================
+            try {
+              // 1. フォルダ内から対象のCSVファイルのハンドルを取得
+              const fileHandle = await directoryHandle.getFileHandle(csvFile);
 
-                reader.onload = (e) => {
-                  const content = e.target.result;
+              // 2. ファイルオブジェクトを取得
+              const file = await fileHandle.getFile();
 
-                  // 改行で分割して配列にする
-                  const lines = content.split(/\r\n|\n/);
+              // 3. テキストとして一瞬で読み込む
+              const content = await file.text();
 
-                  playerSelectBox.innerHTML =
-                    '<option value="">-- 選手を選択してください --</option>';
+              // 改行で分割して配列にする
+              const lines = content.split(/\r\n|\n/);
 
-                  let index = 0;
-                  // 1行ずつ順番に処理を実行
-                  lines.forEach((line) => {
-                    if (index === 0) {
-                      index = index + 1;
-                      return;
-                    }
+              playerSelectBox.innerHTML =
+                '<option value="">-- 選手を選択してください --</option>';
 
-                    index = index + 1;
+              let index = 0;
+              // 1行ずつ順番に処理を実行
+              lines.forEach((line) => {
+                if (index === 0) {
+                  index = index + 1;
+                  return;
+                }
 
-                    if (!line.trim()) return;
+                index = index + 1;
 
-                    const cols = line.split(",");
-                    if (cols[0] !== option3) return;
-                    if (cols[2] !== option1) return;
+                if (!line.trim()) return;
 
-                    const text = cols[1].trim();
-                    const value = cols[1].trim();
+                const cols = line.split(",");
 
-                    const option = document.createElement("option");
-                    option.value = value;
-                    option.textContent = text;
-                    playerSelectBox.appendChild(option);
-                  });
-                  playerSelectBox.style.display = "block";
-                };
-                reader.readAsText(file, "UTF-8");
+                // 💡 配列の安全性を考慮してオプショナルチェーニング（?.）を使用
+                if (cols[0]?.trim() !== option3) return;
+                //if (cols[2]?.trim() !== option1) return;
+
+                let text = cols[1]?.trim() || "";
+                if (cols.length === 4) {
+                  text = text + "(" + cols[2].trim() + ")";
+                }
+                const value = cols[1]?.trim() || "";
+
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = text;
+                playerSelectBox.appendChild(option);
+              });
+
+              // 選手選択ボックスを表示
+              playerSelectBox.style.display = "block";
+            } catch (err) {
+              if (err.name === "NotFoundError") {
+                console.error(`ファイルが見つかりません: ${csvFile}`);
+                alert(
+                  `フォルダ内に選手リストファイル「${csvFile}」が存在しません。`,
+                );
+              } else {
+                console.error("ファイル読み込みエラー:", err);
               }
-            });
+            }
           } else if (option2 === "option2_overall") {
-            // 検索ボタンを非表示
+            // 検索ボタンを表示
             searchBtn.style.display = "block";
           }
         });
@@ -709,7 +824,7 @@
       // IN: option1Value 大会区分
       // IN: option3Value 男子／女子
       // IN: option2Value 総合順位／個人／大会
-      function searchOverall(
+      async function searchOverall(
         csvFile,
         option1Value,
         option3Value,
@@ -717,216 +832,277 @@
       ) {
         let result = "";
 
-        Array.from(window.selectedFiles).forEach((file) => {
-          if (file.name === csvFile) {
-            const reader = new FileReader();
+        console.log("csvfile:", csvFile);
+        try {
+          // 1. 保存してあるフォルダ（directoryHandle）から直接引数のCSVファイルを取得
+          const fileHandle = await directoryHandle.getFileHandle(csvFile);
 
-            reader.onload = (e) => {
-              const content = e.target.result;
+          console.log("searchOverall 1");
 
-              // 改行で分割して配列にする
-              const lines = content.split("\n");
+          // 2. ファイルオブジェクトを取得
+          const file = await fileHandle.getFile();
 
-              let index = 0;
+          console.log("searchOverall 2");
 
-              if (option2Value === "option2_personal") {
-                // 選手名取得
-                const player = getPlayerName();
+          // 3. FileReaderを使わずに、直接テキスト（UTF-8）として読み込む
+          const content = await file.text();
 
-                // 1行ずつ順番に処理を実行
-                lines.forEach((line) => {
-                  if (!line.trim()) return;
+          // 改行で分割して配列にする
+          const lines = content.split("\n");
+          let index = 0;
 
-                  const cols = line.split(",");
-                  if (cols[2].trim() === player || index === 0) {
-                    index++;
-                    if (option1Value === "option1_jp") {
-                      const str =
-                        cols[1].trim() +
-                        "," + // 順位
-                        cols[2].trim() +
-                        "," + // 名前
-                        cols[3].trim() +
-                        "\n"; // ポイント
-                    } else {
-                      const str =
-                        cols[1].trim() +
-                        "," + // 順位
-                        cols[2].trim() +
-                        "," + // 名前
-                        cols[3].trim() +
-                        "," + // 国
-                        cols[4].trim() +
-                        "\n"; // ポイント
-                    }
+          // ========================================================
+          // 💡 修正ポイント：個人検索か、シーズン全体検索かで条件分岐を分ける（二重実行を防ぐ）
+          // ========================================================
+          if (option2Value === "option2_personal") {
+            // 選手名取得
+            const player = getPlayerName();
 
-                    result += str;
-                  }
-                  resultDisplay(result);
-                  return;
-                });
-              }
+            // 【パターンA】個人検索用のループ処理
+            lines.forEach((line) => {
+              if (!line.trim()) return;
 
-              // 1行ずつ順番に処理を実行
-              lines.forEach((line) => {
-                if (!line.trim()) return;
-
-                const cols = line.split(",");
-                if (cols[0].trim() === option3Value || index === 0) {
-                  index++;
-                  const str =
-                    cols[1].trim() +
+              const cols = line.split(",");
+              if (cols[2]?.trim() === player || index === 0) {
+                index++;
+                let str = ""; // 💡 宣言位置を修正してスコープエラーを回避
+                if (option1Value === OPTION1_VALUE_JP) {
+                  str =
+                    (cols[1] ? cols[1].trim() : "") +
                     "," + // 順位
-                    cols[2].trim() +
+                    (cols[2] ? cols[2].trim() : "") +
                     "," + // 名前
-                    cols[3].trim() +
+                    (cols[3] ? cols[3].trim() : "") +
                     "\n"; // ポイント
-
-                  result += str;
+                } else {
+                  str =
+                    (cols[1] ? cols[1].trim() : "") +
+                    "," + // 順位
+                    (cols[2] ? cols[2].trim() : "") +
+                    "," + // 名前
+                    (cols[3] ? cols[3].trim() : "") +
+                    "," + // 国
+                    (cols[4] ? cols[4].trim() : "") +
+                    "\n"; // ポイント
                 }
-                resultDisplay(result);
-              });
-            };
-            reader.readAsText(file, "UTF-8");
+                result += str;
+              }
+            });
+          } else {
+            // 【パターンB】シーズン全体検索用のループ処理
+            lines.forEach((line) => {
+              if (!line.trim()) return;
+
+              const cols = line.split(",");
+              if ((cols[0] && cols[0].trim() === option3Value) || index === 0) {
+                index++;
+                if (option1Value === OPTION1_VALUE_JP) {
+                  str =
+                    (cols[1] ? cols[1].trim() : "") +
+                    "," + // 順位
+                    (cols[2] ? cols[2].trim() : "") +
+                    "," + // 名前
+                    (cols[3] ? cols[3].trim() : "") +
+                    "\n"; // ポイント
+                } else {
+                  console.log("大会区分：", option1Value);
+
+                  str =
+                    (cols[1] ? cols[1].trim() : "") +
+                    "," + // 順位
+                    (cols[2] ? cols[2].trim() : "") +
+                    "," + // 名前
+                    (cols[3] ? cols[3].trim() : "") +
+                    "," + // 国
+                    (cols[4] ? cols[4].trim() : "") +
+                    "\n"; // ポイント
+                }
+                result += str;
+              }
+            });
           }
-        });
+
+          // 💡 修正ポイント：すべての行のループ解析が完全に終わった後で、1回だけ画面に結果を反映する
+          resultDisplay(result);
+        } catch (err) {
+          if (err.name === "NotFoundError") {
+            console.error(`ファイルが見つかりません: ${csvFile}`);
+            alert(
+              `フォルダ内に指定されたファイル「${csvFile}」が存在しません。`,
+            );
+          } else {
+            console.error("総合データの読み込み中にエラーが発生しました:", err);
+          }
+        }
       }
 
       // 大会の成績検索
       // IN: csvFile 検索対象CSVファイル名
       // IN: competitionName 大会名
       // IN: option4Value 男子／女子
-      function searchCompetition(csvFile, competitionName, option4Value) {
+      async function searchCompetition(csvFile, competitionName, option4Value) {
         let result = "";
         search_result = "";
 
-        Array.from(window.selectedFiles).forEach((file) => {
-          if (file.name === csvFile) {
-            const reader = new FileReader();
+        try {
+          // 1. 保存してあるフォルダ（directoryHandle）から直接引数のCSVファイルを取得
+          const fileHandle = await directoryHandle.getFileHandle(csvFile);
 
-            reader.onload = (e) => {
-              const content = e.target.result;
+          // 2. ファイルオブジェクトを取得
+          const file = await fileHandle.getFile();
 
-              // 改行で分割して配列にする
-              const lines = content.split("\n");
+          // 3. FileReaderを使わずに、直接テキスト（UTF-8）として読み込む
+          const content = await file.text();
 
-              let index = 0;
+          // ==========================================
+          // ここから下は解析ロジックを最適化して流用
+          // ==========================================
 
-              // 1行ずつ順番に処理を実行
-              lines.forEach((line) => {
-                if (!line.trim()) return;
+          // 改行で分割して配列にする
+          const lines = content.split("\n");
 
-                const cols = line.split(",");
-                if (
-                  (cols[0].trim() === competitionName &&
-                    cols[2].trim() === option4Value) ||
-                  index === 0
-                ) {
-                  index++;
-                  const str =
-                    cols[3].trim() +
-                    "," + // 順位
-                    cols[4].trim() +
-                    "," + // 名前
-                    cols[5].trim() +
-                    "," + // 所属
-                    cols[6].trim() +
-                    "," + // 合計得点
-                    cols[7].trim() +
-                    "," + // 1本目飛距離
-                    cols[8].trim() +
-                    "," + // 1本目飛距離点
-                    cols[9].trim() +
-                    "," + // 1本目飛型点
-                    cols[10].trim() +
-                    "," + // 1本目得点
-                    cols[11].trim() +
-                    "," + // 1本目順位
-                    cols[12].trim() +
-                    "," + // 2本目飛距離
-                    cols[13].trim() +
-                    "," + // 2本目飛距離点
-                    cols[14].trim() +
-                    "," + // 2本目飛型点
-                    cols[15].trim() +
-                    "," + // 2本目得点
-                    cols[16].trim() +
-                    "\n"; // 2本目順位
+          let index = 0;
 
-                  result += str;
-                }
-                search_result = result;
-                resultDisplay(search_result);
-              });
-            };
-            reader.readAsText(file, "UTF-8");
+          // 1行ずつ順番に処理を実行
+          lines.forEach((line) => {
+            if (!line.trim()) return;
+
+            const cols = line.split(",");
+            if (
+              (cols[0].trim() === competitionName &&
+                cols[2].trim() === option4Value) ||
+              index === 0
+            ) {
+              index++;
+              const str =
+                cols[3].trim() +
+                "," + // 順位
+                cols[4].trim() +
+                "," + // 名前
+                cols[5].trim() +
+                "," + // 所属
+                cols[6].trim() +
+                "," + // 合計得点
+                cols[7].trim() +
+                "," + // 1本目飛距離
+                cols[8].trim() +
+                "," + // 1本目飛距離点
+                cols[9].trim() +
+                "," + // 1本目飛型点
+                cols[10].trim() +
+                "," + // 1本目得点
+                cols[11].trim() +
+                "," + // 1本目順位
+                cols[12].trim() +
+                "," + // 2本目飛距離
+                cols[13].trim() +
+                "," + // 2本目飛距離点
+                cols[14].trim() +
+                "," + // 2本目飛型点
+                cols[15].trim() +
+                "," + // 2本目得点
+                cols[16].trim() +
+                "\n"; // 2本目順位
+
+              result += str;
+            }
+          });
+
+          // 💡 修正ポイント：すべての行のループが終わった「後」で、1回だけ画面に結果を反映する
+          search_result = result;
+          resultDisplay(search_result);
+        } catch (err) {
+          if (err.name === "NotFoundError") {
+            console.error(`ファイルが見つかりません: ${csvFile}`);
+            alert(
+              `フォルダ内に指定されたファイル「${csvFile}」が存在しません。`,
+            );
+          } else {
+            console.error(
+              "検索用ファイルの読み込み中にエラーが発生しました:",
+              err,
+            );
           }
-        });
+        }
       }
 
       // 選手指定検索
       // IN: csvFile 検索対象CSVファイル名
       // IN: player  選手名
-      function searchplayer(csvFile, player) {
+      async function searchplayer(csvFile, player) {
         let result = "";
         search_result = "";
 
-        Array.from(window.selectedFiles).forEach((file) => {
-          if (file.name === csvFile) {
-            const reader = new FileReader();
+        try {
+          // 1. 保存してあるフォルダ（directoryHandle）から直接引数のCSVファイルを取得
+          const fileHandle = await directoryHandle.getFileHandle(csvFile);
 
-            reader.onload = (e) => {
-              const content = e.target.result;
+          // 2. ファイルオブジェクトを取得
+          const file = await fileHandle.getFile();
 
-              // 改行で分割して配列にする
-              const lines = content.split("\n");
+          // 3. FileReaderを使わずに、直接テキスト（UTF-8）として読み込む
+          const content = await file.text();
 
-              let index = 0;
+          // 改行で分割して配列にする
+          const lines = content.split("\n");
+          let index = 0;
 
-              // 1行ずつ順番に処理を実行
-              lines.forEach((line) => {
-                if (!line.trim()) return;
+          // 1行ずつ順番に処理を実行
+          lines.forEach((line) => {
+            if (!line.trim()) return;
 
-                const cols = line.split(",");
-                if (cols[4].trim() === player || index === 0) {
-                  index++;
-                  const str =
-                    cols[0].trim() +
-                    "," + // 大会名
-                    cols[3].trim() +
-                    "," + // 順位
-                    cols[6].trim() +
-                    "," + // 合計得点
-                    cols[7].trim() +
-                    "," + // 1本目飛距離
-                    cols[8].trim() +
-                    "," + // 1本目飛距離点
-                    cols[9].trim() +
-                    "," + // 1本目飛型点
-                    cols[10].trim() +
-                    "," + // 1本目得点
-                    cols[11].trim() +
-                    "," + // 1本目順位
-                    cols[12].trim() +
-                    "," + // 2本目飛距離
-                    cols[13].trim() +
-                    "," + // 2本目飛距離点
-                    cols[14].trim() +
-                    "," + // 2本目飛型点
-                    cols[15].trim() +
-                    "," + // 2本目得点
-                    cols[16].trim() +
-                    "\n"; // 2本目順位
+            const cols = line.split(",");
 
-                  result += str;
-                }
-                search_result = result;
-                resultDisplay(search_result);
-              });
-            };
-            reader.readAsText(file, "UTF-8");
+            // 💡 修正ポイント：インデックス[4]番目の「選手名」を安全に判定
+            if ((cols && cols[4]?.trim() === player) || index === 0) {
+              index++;
+
+              // 💡 修正ポイント：インデックスの各数字を確実に維持し、安全に文字列を結合
+              const str =
+                (cols[0] ? cols[0].trim() : "") +
+                "," + // 大会名
+                (cols[3] ? cols[3].trim() : "") +
+                "," + // 順位
+                (cols[6] ? cols[6].trim() : "") +
+                "," + // 合計得点
+                (cols[7] ? cols[7].trim() : "") +
+                "," + // 1本目飛距離
+                (cols[8] ? cols[8].trim() : "") +
+                "," + // 1本目飛距離点
+                (cols[9] ? cols[9].trim() : "") +
+                "," + // 1本目飛型点
+                (cols[10] ? cols[10].trim() : "") +
+                "," + // 1本目得点
+                (cols[11] ? cols[11].trim() : "") +
+                "," + // 1本目順位
+                (cols[12] ? cols[12].trim() : "") +
+                "," + // 2本目飛距離
+                (cols[13] ? cols[13].trim() : "") +
+                "," + // 2本目飛距離点
+                (cols[14] ? cols[14].trim() : "") +
+                "," + // 2本目飛型点
+                (cols[15] ? cols[15].trim() : "") +
+                "," + // 2本目得点
+                (cols[16] ? cols[16].trim() : "") +
+                "\n"; // 2本目順位
+
+              result += str;
+            }
+          });
+
+          // 💡 修正ポイント：すべての行のループが終わった「後」で、1回だけ画面に結果を反映する
+          search_result = result;
+          resultDisplay(search_result);
+        } catch (err) {
+          if (err.name === "NotFoundError") {
+            console.error(`ファイルが見つかりません: ${csvFile}`);
+            alert(
+              `フォルダ内に指定されたファイル「${csvFile}」が存在しません。`,
+            );
+          } else {
+            console.error("選手データの読み込み中にエラーが発生しました:", err);
           }
-        });
+        }
       }
 
       const RESULT_CSV_FILE_JP = "result_jp.csv";
@@ -1022,7 +1198,7 @@
         // ヘッダ表示
         const cols = lines[0].split(",");
         let tableHdrHTML =
-          '<table style="border-collapse: collapse; width: 100%;">';
+          '<table style="border-collapse: collapse; width: 100%; margin-top: 15px;">';
         tableHdrHTML += "<tr>";
         for (const item of cols) {
           const trimmedItem = item.trim();
