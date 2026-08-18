@@ -305,6 +305,72 @@
       <tbody id="tableBody1"></tbody>
     </table>
 
+    <!-- 総合順位と個人成績 -->
+    <div class="table-overall">
+      <!-- 総合順位テーブル -->
+      <table id="overallTable">
+        <thead>
+          <tr id="overallHeader"></tr>
+        </thead>
+        <tbody id="overallBody"></tbody>
+      </table>
+
+      <!-- 選手成績のテーブル -->
+      <table id="playerTable">
+        <thead>
+          <tr id="playerHeader"></tr>
+        </thead>
+        <tbody id="playerBody"></tbody>
+      </table>
+    </div>
+
+    <style>
+      /* 横並びレイアウト（前々回の応用） */
+      .table-overall {
+        display: flex;
+        gap: 30px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 300px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: center;
+      }
+
+      th {
+        background-color: #f4f4f4;
+      }
+
+      /* ★初期状態：選手成績テーブルは非表示 */
+      #playerTable th,
+      #playerTable td {
+        border: 1px solid #999;
+        padding: 8px;
+        white-space: nowrap; /* ★文字を途中で自動改行させず、1行に収める */
+        width: auto; /* 各列の幅も中身に合わせる */
+      }
+
+      /* 選手名の列にマウスを乗せたら指マークにして、少し背景を変える設定 */
+      .clickable-name {
+        cursor: pointer;
+        color: #0066cc;
+        text-decoration: underline;
+        background-color: #f9f9f9;
+      }
+      .clickable-name:hover {
+        background-color: #e6f2ff;
+      }
+    </style>
+
     <script>
       // 検索オプション1 大会区分
       const OPTION1_VALUE_JP = "1";
@@ -455,6 +521,13 @@
         // ファイルダウンロード
         await dataDownLoad();
 
+        // option2ラジオボタンを非表示
+        radioArea2.style.display = "none";
+        const option2Radios = document.getElementsByName("option2");
+        option2Radios.forEach((radio) => {
+          radio.checked = false;
+        });
+
         // option3ラジオボタンを非表示
         radioArea3.style.display = "none";
         const option3Radios = document.getElementsByName("option3");
@@ -473,7 +546,7 @@
         compSelectBox.style.display = "none";
 
         // 選手選択ボックスを非表示
-        compSelectBox.style.display = "none";
+        playerSelectBox.style.display = "none";
 
         // 検索ボタン非表示
         searchBtn.style.display = "none";
@@ -481,6 +554,8 @@
         // 表を非表示
         dispTable.style.display = "none";
         dispTable1.style.display = "none";
+        overallTable.style.display = "none";
+        playerTable.style.display = "none";
 
         // オプション1選択ラジオボタン表示
         const option1Radios = document.getElementsByName("option1");
@@ -490,11 +565,11 @@
         radioArea1.style.display = "block";
 
         // オプション2選択ラジオボタン表示
-        const option2Radios = document.getElementsByName("option2");
-        option2Radios.forEach((radio) => {
-          radio.checked = false;
-        });
-        radioArea2.style.display = "block";
+        //const option2Radios = document.getElementsByName("option2");
+        //option2Radios.forEach((radio) => {
+        //  radio.checked = false;
+        //});
+        //radioArea2.style.display = "block";
 
         // 💡 showDirectoryPicker用の正しいファイル一覧取得処理
         const filePaths = [];
@@ -506,14 +581,6 @@
           }
         }
 
-        //  const files = event.target.files;
-        //  if (files.length === 0) return;
-
-        //  const filePaths = [];
-        //  for (let i = 0; i < files.length; i++) {
-        //    filePaths.push(files[i].webkitRelativePath);
-        //  }
-
         // 選択された全ファイルのリストをそのまま保存
         window.selectedFiles = event.target.files;
       });
@@ -522,10 +589,17 @@
       document.getElementsByName("option1").forEach((radio) => {
         radio.addEventListener("change", (e) => {
           // option2ラジオボタンを初期化
+          //const option2Radios = document.getElementsByName("option2");
+          //option2Radios.forEach((radio) => {
+          //  radio.checked = false;
+          //});
+
+          // オプション2選択ラジオボタン表示
           const option2Radios = document.getElementsByName("option2");
           option2Radios.forEach((radio) => {
             radio.checked = false;
           });
+          radioArea2.style.display = "block";
 
           // option3ラジオボタンを非表示
           radioArea3.style.display = "none";
@@ -553,6 +627,8 @@
           // 表を非表示
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
+          overallTable.style.display = "none";
+          playerTable.style.display = "none";
         });
       });
 
@@ -589,6 +665,8 @@
           // 表を非表示
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
+          overallTable.style.display = "none";
+          playerTable.style.display = "none";
 
           // 「総合順位」「個人」が選択された場合
           if (
@@ -708,6 +786,8 @@
           // 表を非表示
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
+          overallTable.style.display = "none";
+          playerTable.style.display = "none";
 
           // option1、option2 選択項目取得
           const option1 = document.querySelector(
@@ -803,6 +883,8 @@
           // 表を非表示
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
+          overallTable.style.display = "none";
+          playerTable.style.display = "none";
         });
       });
 
@@ -823,6 +905,9 @@
         // 表を非表示
         dispTable.style.display = "none";
         dispTable1.style.display = "none";
+        overallTable.style.display = "none";
+        playerTable.style.display = "none";
+
         // 検索ボタンを非表示
         searchBtn.style.display = "none";
       });
@@ -832,7 +917,8 @@
         // 表を非表示
         dispTable.style.display = "none";
         dispTable1.style.display = "none";
-        // 検索ボタンを表示
+        overallTable.style.display = "none";
+        playerTable.style.display = "none";
         searchBtn.style.display = "block";
       });
 
@@ -1130,6 +1216,87 @@
         }
       }
 
+      // 選手指定検索総合順位
+      // IN: csvFile 検索対象CSVファイル名
+      // IN: player  選手名
+      async function searchplayerOverall(csvFile, player) {
+        let result = "";
+        search_result = "";
+
+        try {
+          // 1. 保存してあるフォルダ（directoryHandle）から直接引数のCSVファイルを取得
+          const fileHandle = await directoryHandle.getFileHandle(csvFile);
+
+          // 2. ファイルオブジェクトを取得
+          const file = await fileHandle.getFile();
+
+          // 3. FileReaderを使わずに、直接テキスト（UTF-8）として読み込む
+          const content = await file.text();
+
+          // 改行で分割して配列にする
+          const lines = content.split("\n");
+          let index = 0;
+
+          // 1行ずつ順番に処理を実行
+          lines.forEach((line) => {
+            if (!line.trim()) return;
+
+            const cols = line.split(",");
+
+            // 💡 修正ポイント：インデックス[4]番目の「選手名」を安全に判定
+            if ((cols && cols[4]?.trim() === player) || index === 0) {
+              index++;
+
+              // 💡 修正ポイント：インデックスの各数字を確実に維持し、安全に文字列を結合
+              const str =
+                (cols[0] ? cols[0].trim() : "") +
+                "," + // 大会名
+                (cols[3] ? cols[3].trim() : "") +
+                "," + // 順位
+                //  (cols[6] ? cols[6].trim() : "") +
+                //  "," + // 合計得点
+                //  (cols[7] ? cols[7].trim() : "") +
+                //  "," + // 1本目飛距離
+                //  (cols[8] ? cols[8].trim() : "") +
+                //  "," + // 1本目飛距離点
+                //  (cols[9] ? cols[9].trim() : "") +
+                //  "," + // 1本目飛型点
+                //  (cols[10] ? cols[10].trim() : "") +
+                //  "," + // 1本目得点
+                //  (cols[11] ? cols[11].trim() : "") +
+                //  "," + // 1本目順位
+                //  (cols[12] ? cols[12].trim() : "") +
+                //  "," + // 2本目飛距離
+                //  (cols[13] ? cols[13].trim() : "") +
+                //  "," + // 2本目飛距離点
+                //  (cols[14] ? cols[14].trim() : "") +
+                //  "," + // 2本目飛型点
+                //  (cols[15] ? cols[15].trim() : "") +
+                //  "," + // 2本目得点
+                //  (cols[16] ? cols[16].trim() : "") +
+                //  "," + // 2本目得点
+                (cols[17] ? cols[17].trim() : "") +
+                "\n"; // ポイント
+
+              result += str;
+            }
+          });
+
+          // 💡 修正ポイント：すべての行のループが終わった「後」で、1回だけ画面に結果を反映する
+          search_result = result;
+          //  resultDisplay(search_result);
+        } catch (err) {
+          if (err.name === "NotFoundError") {
+            console.error(`ファイルが見つかりません: ${csvFile}`);
+            alert(
+              `フォルダ内に指定されたファイル「${csvFile}」が存在しません。`,
+            );
+          } else {
+            console.error("選手データの読み込み中にエラーが発生しました:", err);
+          }
+        }
+      }
+
       const RESULT_CSV_FILE_JP = "result_jp.csv";
       const RESULT_CSV_FILE_WC = "result_wc.csv";
       const RESULT_CSV_FILE_CC = "result_cc.csv";
@@ -1204,15 +1371,15 @@
             option3Value,
             option2Value,
           );
-          resultDisplayTableiSet("tableHeader", "tableBody", search_result);
-          dispTable.style.display = "table";
+          overallDisplayTableSet("overallHeader", "overallBody", search_result);
+          overallTable.style.display = "table";
         } else if (option2Value === "option2_competition") {
           const option4Value = document.querySelector(
             'input[name="option4"]:checked',
           ).value;
           const competitionName = getCompetitionName();
           await searchCompetition(csvFile, competitionName, option4Value);
-          resultDisplayTableiSet("tableHeader", "tableBody", search_result);
+          resultDisplayTableSet("tableHeader", "tableBody", search_result);
           dispTable.style.display = "table";
         } else if (option2Value === "option2_personal") {
           const playerName = getPlayerName();
@@ -1229,9 +1396,9 @@
             option3Value,
             option2Value,
           );
-          resultDisplayTableiSet("tableHeader", "tableBody", search_result);
+          resultDisplayTableSet("tableHeader", "tableBody", search_result);
           await searchplayer(csvFile, playerName);
-          resultDisplayTableiSet("tableHeader1", "tableBody1", search_result);
+          resultDisplayTableSet("tableHeader1", "tableBody1", search_result);
           dispTable.style.display = "table";
           dispTable1.style.display = "table";
         } else {
@@ -1240,46 +1407,8 @@
         return result;
       }
 
-      // 検索結果を表示する
-      // IN:resultList csv形式文字列のリスト
-      //               1レコード目はヘッダ情報
-      function resultDisplay(resultList) {
-        console.log(resultList);
-        const lines = resultList.trim().split("\n");
-        // ヘッダ表示
-        const cols = lines[0].split(",");
-        let tableHdrHTML =
-          '<table style="border-collapse: collapse; width: 100%; margin-top: 15px;">';
-        tableHdrHTML += "<tr>";
-        for (const item of cols) {
-          const trimmedItem = item.trim();
-          tableHdrHTML += `<th style="border: 1px solid #999; padding: 8px; background: #e0e0e0;">${trimmedItem}</td>`;
-        }
-        tableHdrHTML += "</tr>";
-        tableHdrHTML += "</table>";
-        document.getElementById("tableHeader").innerHTML = tableHdrHTML;
-
-        // 検索結果表示
-        let tableBodyHTML =
-          '<table style="border-collapse: collapse; width: 100%;">';
-        tableBodyHTML += "<tr>";
-        for (let i = 1; i < lines.length; i++) {
-          if (!lines[i]) continue;
-          const cols = lines[i].split(",");
-          for (const item of cols) {
-            const trimmedItem = item.trim();
-            tableBodyHTML += `<th style="border: 1px solid #999; padding: 8px; background: #f2f2f2;">${trimmedItem}</td>`;
-          }
-          tableBodyHTML += "</tr>";
-          tableBodyHTML += "</table>";
-        }
-
-        document.getElementById("tableBody").innerHTML = tableBodyHTML;
-
-        dispTable.style.display = "table";
-      }
-
-      function resultDisplayTableiSet(headerId, bodyId, resultList) {
+      // 表示テーブル設定
+      function resultDisplayTableSet(headerId, bodyId, resultList) {
         console.log(resultList);
         const headerRow = document.getElementById(headerId);
         const tableBody = document.getElementById(bodyId);
@@ -1320,6 +1449,94 @@
         tableBody.innerHTML = tableBodyHTML;
 
         //  dispTable.style.display = "table";
+      }
+
+      // 総合結果テーブル設定
+      async function overallDisplayTableSet(headerId, bodyId, resultList) {
+        console.log(resultList);
+        const headerRow = document.getElementById(headerId);
+        const tableBody = document.getElementById(bodyId);
+
+        console.log(resultList);
+        const lines = resultList.trim().split("\n");
+        // ヘッダ表示
+        const cols = lines[0].split(",");
+        //let tableHdrHTML =
+        //  '<table style="border-collapse: collapse; width: 100%; margin-top: 15px;">';
+        //tableHdrHTML += "<tr>";
+        let tableHdrHTML = ""; // <tr>の中身だけにする（元々の <tr> タグを活かすため）
+        for (const item of cols) {
+          const trimmedItem = item.trim();
+          //  tableHdrHTML += `<th style="border: 1px solid #999; padding: 8px; background: #e0e0e0;">${trimmedItem}</td>`;
+          tableHdrHTML += `<th style="border: 1px solid #999; padding: 8px; background: #e0e0e0;">${trimmedItem}</th>`;
+        }
+        //tableHdrHTML += "</tr>";
+        //tableHdrHTML += "</table>";
+        console.log(tableHdrHTML);
+        headerRow.innerHTML = tableHdrHTML;
+
+        // 検索結果表示
+        //let tableBodyHTML =
+        //  '<table style="border-collapse: collapse; width: 100%;">';
+        //tableBodyHTML += "<tr>";
+        let tableBodyHTML = ""; // <tr>の中身だけにする（元々の <tbody> タグを活かすため）
+
+        // 仮に、選手名がCSVの「左から2番目の列（インデックス1）」にあると設定
+        // 1番左（インデックス0）なら 0 に変更してください
+        const playerNameColumnIndex = 1;
+
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i]) continue;
+          const cols = lines[i].split(",");
+
+          tableBodyHTML += "<tr>";
+          for (let j = 0; j < cols.length; j++) {
+            const trimmedItem = cols[j].trim();
+
+            // 選手名の列（カラム）のときだけ、クリック用の目印（クラスやスタイル）をつける
+            if (j === playerNameColumnIndex) {
+              tableBodyHTML += `<td class="clickable-player" style="border: 1px solid #999; padding: 8px; background: #f2f2f2; cursor: pointer; color: blue; text-decoration: underline;">${trimmedItem}</td>`;
+            } else {
+              // 通常のデータセル（<td>に変更）
+              tableBodyHTML += `<td style="border: 1px solid #999; padding: 8px; background: #f2f2f2;">${trimmedItem}</td>`;
+            }
+          }
+          tableBodyHTML += "</tr>";
+        }
+
+        console.log(tableBodyHTML);
+
+        tableBody.innerHTML = tableBodyHTML;
+
+        // --- 【重要】クリックイベントの設定（1回だけ設定されるようにする） ---
+        const overallTable = document.getElementById("overallTable");
+
+        // イベントの重複登録を防ぐため、一度削除してから登録（または一度だけ実行）
+        overallTable.onclick = null; // 初期化
+        overallTable.onclick = async function (event) {
+          // クリックされたセルが「選手名（clickable-player）」かチェック
+          const cell = event.target.closest(".clickable-player");
+          if (!cell) return; // 選手名以外のクリックは無視
+
+          const playerName = cell.textContent; // クリックされた選手名を取得
+          console.log("クリックされた選手:", playerName);
+
+          const option1Value = document.querySelector(
+            'input[name="option1"]:checked',
+          ).value;
+          const option2Value = document.querySelector(
+            'input[name="option2"]:checked',
+          ).value;
+
+          const csvFile = getResultCsvFile(option1Value, "option2_personal");
+          console.log(csvFile);
+          await searchplayerOverall(csvFile, playerName);
+          resultDisplayTableSet("playerHeader", "playerBody", search_result);
+
+          // 1. 選手成績のテーブルを表示する
+          const playerTable = document.getElementById("playerTable");
+          playerTable.style.display = "table";
+        };
       }
     </script>
   </body>
