@@ -284,13 +284,25 @@
     </div>
 
     <!-- 検索実行ボタン -->
-    <button id="searchBtn" style="display: none; font-size: 12px">検索</button>
+    <button
+      id="searchBtn"
+      style="display: none; font-size: 12px; margin-bottom: 24px"
+    >
+      検索
+    </button>
 
-    <table id="dispTable" style="display: none">
+    <table id="dispTable" style="display: none; margin-bottom: 24px">
       <thead>
         <tr id="tableHeader"></tr>
       </thead>
       <tbody id="tableBody"></tbody>
+    </table>
+
+    <table id="dispTable1" style="display: none">
+      <thead>
+        <tr id="tableHeader1"></tr>
+      </thead>
+      <tbody id="tableBody1"></tbody>
     </table>
 
     <script>
@@ -468,6 +480,7 @@
 
         // 表を非表示
         dispTable.style.display = "none";
+        dispTable1.style.display = "none";
 
         // オプション1選択ラジオボタン表示
         const option1Radios = document.getElementsByName("option1");
@@ -539,6 +552,7 @@
 
           // 表を非表示
           dispTable.style.display = "none";
+          dispTable1.style.display = "none";
         });
       });
 
@@ -574,6 +588,7 @@
 
           // 表を非表示
           dispTable.style.display = "none";
+          dispTable1.style.display = "none";
 
           // 「総合順位」「個人」が選択された場合
           if (
@@ -692,6 +707,7 @@
           searchBtn.style.display = "none";
           // 表を非表示
           dispTable.style.display = "none";
+          dispTable1.style.display = "none";
 
           // option1、option2 選択項目取得
           const option1 = document.querySelector(
@@ -786,6 +802,7 @@
           searchBtn.style.display = "block";
           // 表を非表示
           dispTable.style.display = "none";
+          dispTable1.style.display = "none";
         });
       });
 
@@ -805,6 +822,7 @@
         });
         // 表を非表示
         dispTable.style.display = "none";
+        dispTable1.style.display = "none";
         // 検索ボタンを非表示
         searchBtn.style.display = "none";
       });
@@ -813,6 +831,7 @@
       playerSelectBox.addEventListener("change", function () {
         // 表を非表示
         dispTable.style.display = "none";
+        dispTable1.style.display = "none";
         // 検索ボタンを表示
         searchBtn.style.display = "block";
       });
@@ -831,6 +850,7 @@
         option2Value,
       ) {
         let result = "";
+        search_result = "";
 
         console.log("csvfile:", csvFile);
         try {
@@ -923,7 +943,8 @@
           }
 
           // 💡 修正ポイント：すべての行のループ解析が完全に終わった後で、1回だけ画面に結果を反映する
-          resultDisplay(result);
+          search_result = result;
+          // resultDisplay(result);
         } catch (err) {
           if (err.name === "NotFoundError") {
             console.error(`ファイルが見つかりません: ${csvFile}`);
@@ -1012,7 +1033,7 @@
 
           // 💡 修正ポイント：すべての行のループが終わった「後」で、1回だけ画面に結果を反映する
           search_result = result;
-          resultDisplay(search_result);
+          //  resultDisplay(search_result);
         } catch (err) {
           if (err.name === "NotFoundError") {
             console.error(`ファイルが見つかりません: ${csvFile}`);
@@ -1096,7 +1117,7 @@
 
           // 💡 修正ポイント：すべての行のループが終わった「後」で、1回だけ画面に結果を反映する
           search_result = result;
-          resultDisplay(search_result);
+          //  resultDisplay(search_result);
         } catch (err) {
           if (err.name === "NotFoundError") {
             console.error(`ファイルが見つかりません: ${csvFile}`);
@@ -1160,7 +1181,7 @@
       }
 
       // 検索
-      function search() {
+      async function search() {
         console.log("search()");
         // 結果CSVファイル名取得
         const option1Value = document.querySelector(
@@ -1177,16 +1198,42 @@
           const option3Value = document.querySelector(
             'input[name="option3"]:checked',
           ).value;
-          searchOverall(csvFile, option1Value, option3Value, option2Value);
+          await searchOverall(
+            csvFile,
+            option1Value,
+            option3Value,
+            option2Value,
+          );
+          resultDisplayTableiSet("tableHeader", "tableBody", search_result);
+          dispTable.style.display = "table";
         } else if (option2Value === "option2_competition") {
           const option4Value = document.querySelector(
             'input[name="option4"]:checked',
           ).value;
           const competitionName = getCompetitionName();
-          searchCompetition(csvFile, competitionName, option4Value);
+          await searchCompetition(csvFile, competitionName, option4Value);
+          resultDisplayTableiSet("tableHeader", "tableBody", search_result);
+          dispTable.style.display = "table";
         } else if (option2Value === "option2_personal") {
           const playerName = getPlayerName();
-          searchplayer(csvFile, playerName);
+          const option3Value = document.querySelector(
+            'input[name="option3"]:checked',
+          ).value;
+          const csvFileOvrall = getResultCsvFile(
+            option1Value,
+            "option2_overall",
+          );
+          await searchOverall(
+            csvFileOvrall,
+            option1Value,
+            option3Value,
+            option2Value,
+          );
+          resultDisplayTableiSet("tableHeader", "tableBody", search_result);
+          await searchplayer(csvFile, playerName);
+          resultDisplayTableiSet("tableHeader1", "tableBody1", search_result);
+          dispTable.style.display = "table";
+          dispTable1.style.display = "table";
         } else {
         }
 
@@ -1230,6 +1277,49 @@
         document.getElementById("tableBody").innerHTML = tableBodyHTML;
 
         dispTable.style.display = "table";
+      }
+
+      function resultDisplayTableiSet(headerId, bodyId, resultList) {
+        console.log(resultList);
+        const headerRow = document.getElementById(headerId);
+        const tableBody = document.getElementById(bodyId);
+
+        console.log(resultList);
+        const lines = resultList.trim().split("\n");
+        // ヘッダ表示
+        const cols = lines[0].split(",");
+        let tableHdrHTML =
+          '<table style="border-collapse: collapse; width: 100%; margin-top: 15px;">';
+        tableHdrHTML += "<tr>";
+        for (const item of cols) {
+          const trimmedItem = item.trim();
+          tableHdrHTML += `<th style="border: 1px solid #999; padding: 8px; background: #e0e0e0;">${trimmedItem}</td>`;
+        }
+        tableHdrHTML += "</tr>";
+        tableHdrHTML += "</table>";
+        console.log(tableHdrHTML);
+        headerRow.innerHTML = tableHdrHTML;
+
+        // 検索結果表示
+        let tableBodyHTML =
+          '<table style="border-collapse: collapse; width: 100%;">';
+        tableBodyHTML += "<tr>";
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i]) continue;
+          const cols = lines[i].split(",");
+          for (const item of cols) {
+            const trimmedItem = item.trim();
+            tableBodyHTML += `<th style="border: 1px solid #999; padding: 8px; background: #f2f2f2;">${trimmedItem}</td>`;
+          }
+          tableBodyHTML += "</tr>";
+          tableBodyHTML += "</table>";
+        }
+
+        console.log(tableBodyHTML);
+
+        tableBody.innerHTML = tableBodyHTML;
+
+        //  dispTable.style.display = "table";
       }
     </script>
   </body>
