@@ -305,32 +305,20 @@
       <tbody id="tableBody1"></tbody>
     </table>
 
-    <!-- 総合順位と個人成績 -->
+    <!-- 総合順位と個人成績（この中に2つを並べます） -->
+    <!-- 総合順位テーブル（これだけを残します） -->
     <div class="table-overall">
-      <!-- 総合順位テーブル -->
       <table id="overallTable">
         <thead>
           <tr id="overallHeader"></tr>
         </thead>
         <tbody id="overallBody"></tbody>
       </table>
-
-      <!-- 選手成績のテーブル -->
-      <table id="playerTable">
-        <thead>
-          <tr id="playerHeader"></tr>
-        </thead>
-        <tbody id="playerBody"></tbody>
-      </table>
     </div>
 
     <style>
-      /* 横並びレイアウト（前々回の応用） */
-      .table-overall {
-        display: flex;
-        gap: 30px;
-        flex-wrap: wrap;
-        align-items: flex-start;
+      html {
+        overflow-y: scroll;
       }
 
       table {
@@ -350,14 +338,70 @@
         background-color: #f4f4f4;
       }
 
-      /* ★初期状態：選手成績テーブルは非表示 */
-      #playerTable th,
-      #playerTable td {
+      .table-responsive-wrapper {
+        width: 100%;
+        overflow-x: auto; /* 横方向にはみ出したらスクロールバーを出す */
+        -webkit-overflow-scrolling: touch; /* スマホでのスクロールを滑らかにする */
+        margin-bottom: 24px; /* テーブルの下の余白 */
+      }
+
+      #dispTable,
+      #dispTable1 {
+        width: auto; /* 100%にせず、中身の文字数に幅を自動調整 */
+        border-collapse: collapse;
+        max-width: 100%; /* 画面幅（親の幅）を超えない */
+      }
+
+      /* 各セル（カラム）の設定：改行を防いで列幅をピタッと合わせる */
+      #dispTable th,
+      #dispTable td,
+      #dispTable1 th,
+      #dispTable1 td {
         border: 1px solid #999;
         padding: 8px;
-        white-space: nowrap; /* ★文字を途中で自動改行させず、1行に収める */
-        width: auto; /* 各列の幅も中身に合わせる */
+        white-space: nowrap; /* 文字を自動改行させず、1行に収める */
+        width: auto; /* 列幅を中身に合わせる */
       }
+
+      /* 総合順位テーブルを囲む親要素 */
+      .table-overall {
+        display: flex;
+        width: 100%;
+      }
+
+      /* 総合順位テーブル */
+      #overallTable {
+        width: auto;
+        border-collapse: collapse;
+      }
+
+      /* ★新・選手成績ポップアップ（総合テーブルとは別の次元にJavaScriptで作り出します） */
+      .player-popup-container {
+        position: absolute; /* ページ全体を基準にした絶対配置 */
+        z-index: 99999; /* 最前面に表示 */
+        background: white; /* 背景を白で完全に塗りつぶす */
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); /* 高級感のある影 */
+        border-collapse: collapse;
+        width: auto;
+      }
+
+      /* ポップアップ内のテーブルセル設定 */
+      .player-popup-container th,
+      .player-popup-container td {
+        border: 1px solid #999;
+        padding: 8px;
+        white-space: nowrap; /* 文字数に合わせて列幅を自動調整 */
+        width: auto;
+      }
+
+      /* 選手名リンクの見た目 */
+      /**
+      .clickable-player {
+        cursor: pointer;
+        color: #0066cc;
+        text-decoration: underline;
+      }
+  **/
 
       /* 選手名の列にマウスを乗せたら指マークにして、少し背景を変える設定 */
       .clickable-name {
@@ -555,7 +599,7 @@
         dispTable.style.display = "none";
         dispTable1.style.display = "none";
         overallTable.style.display = "none";
-        playerTable.style.display = "none";
+        //playerTable.style.display = "none";
 
         // オプション1選択ラジオボタン表示
         const option1Radios = document.getElementsByName("option1");
@@ -628,7 +672,7 @@
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
           overallTable.style.display = "none";
-          playerTable.style.display = "none";
+          // playerTable.style.display = "none";
         });
       });
 
@@ -666,7 +710,7 @@
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
           overallTable.style.display = "none";
-          playerTable.style.display = "none";
+          // playerTable.style.display = "none";
 
           // 「総合順位」「個人」が選択された場合
           if (
@@ -787,7 +831,7 @@
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
           overallTable.style.display = "none";
-          playerTable.style.display = "none";
+          // playerTable.style.display = "none";
 
           // option1、option2 選択項目取得
           const option1 = document.querySelector(
@@ -884,7 +928,7 @@
           dispTable.style.display = "none";
           dispTable1.style.display = "none";
           overallTable.style.display = "none";
-          playerTable.style.display = "none";
+          //  playerTable.style.display = "none";
         });
       });
 
@@ -906,7 +950,7 @@
         dispTable.style.display = "none";
         dispTable1.style.display = "none";
         overallTable.style.display = "none";
-        playerTable.style.display = "none";
+        // playerTable.style.display = "none";
 
         // 検索ボタンを非表示
         searchBtn.style.display = "none";
@@ -918,7 +962,7 @@
         dispTable.style.display = "none";
         dispTable1.style.display = "none";
         overallTable.style.display = "none";
-        playerTable.style.display = "none";
+        //  playerTable.style.display = "none";
         searchBtn.style.display = "block";
       });
 
@@ -1415,40 +1459,60 @@
 
         console.log(resultList);
         const lines = resultList.trim().split("\n");
+        if (lines.length === 0 || !lines[0]) return;
+
         // ヘッダ表示
         const cols = lines[0].split(",");
-        let tableHdrHTML =
-          '<table style="border-collapse: collapse; width: 100%; margin-top: 15px;">';
-        tableHdrHTML += "<tr>";
+        let tableHdrHTML = "";
         for (const item of cols) {
           const trimmedItem = item.trim();
-          tableHdrHTML += `<th style="border: 1px solid #999; padding: 8px; background: #e0e0e0;">${trimmedItem}</td>`;
+          tableHdrHTML += `<th style="border: 1px solid #999; padding: 8px; background: #e0e0e0;">${trimmedItem}</th>`;
         }
-        tableHdrHTML += "</tr>";
-        tableHdrHTML += "</table>";
-        console.log(tableHdrHTML);
         headerRow.innerHTML = tableHdrHTML;
 
         // 検索結果表示
-        let tableBodyHTML =
-          '<table style="border-collapse: collapse; width: 100%;">';
-        tableBodyHTML += "<tr>";
+        let tableBodyHTML = "";
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i]) continue;
           const cols = lines[i].split(",");
+          tableBodyHTML += "<tr>"; // 行の開始
+
           for (const item of cols) {
             const trimmedItem = item.trim();
-            tableBodyHTML += `<th style="border: 1px solid #999; padding: 8px; background: #f2f2f2;">${trimmedItem}</td>`;
+            // データ行なので <th> ではなく <td> に修正し、正しく </td> で閉じます
+            tableBodyHTML += `<td style="border: 1px solid #999; padding: 8px; background: #ffffff;">${trimmedItem}</td>`;
           }
-          tableBodyHTML += "</tr>";
-          tableBodyHTML += "</table>";
+          tableBodyHTML += "</tr>"; // 行の終了
         }
 
         console.log(tableBodyHTML);
 
         tableBody.innerHTML = tableBodyHTML;
 
-        //  dispTable.style.display = "table";
+        // テーブルのデータ設定が終わった後に実行する処理
+        function enableTableScroll(tableId) {
+          const table = document.getElementById(tableId);
+          if (!table) return;
+
+          // すでにラッパー（器）で囲まれている場合は、二重に囲まないようにスキップ
+          if (
+            table.parentElement.classList.contains("table-responsive-wrapper")
+          ) {
+            return;
+          }
+
+          // 1. スクロール用の div を新しく作成
+          const wrapper = document.createElement("div");
+          wrapper.className = "table-responsive-wrapper";
+
+          // 2. テーブルの直前に div を挿入し、その中にテーブルを移動する
+          table.parentNode.insertBefore(wrapper, table);
+          wrapper.appendChild(table);
+        }
+
+        // データを入れ終わったタイミングで、それぞれのテーブルIDを指定して呼び出します
+        enableTableScroll("dispTable");
+        enableTableScroll("dispTable1");
       }
 
       // 総合結果テーブル設定
@@ -1514,6 +1578,71 @@
         // イベントの重複登録を防ぐため、一度削除してから登録（または一度だけ実行）
         overallTable.onclick = null; // 初期化
         overallTable.onclick = async function (event) {
+          const overallTable = document.getElementById("overallTable");
+
+          // クリックされたセルが「選手名」かチェック
+          const cell = event.target.closest(".clickable-player");
+          if (!cell) return;
+
+          const playerName = cell.textContent;
+          console.log("クリックされた選手:", playerName);
+
+          // 1. 先に古いポップアップが残っていれば画面から完全に消去する
+          const oldPopup = document.getElementById("dynamicPlayerPopup");
+          if (oldPopup) oldPopup.remove();
+
+          // 2. クリックされたセルの「ページ全体から見た絶対座標」を正確に計算
+          const cellRect = cell.getBoundingClientRect();
+          const pageTop = cellRect.top + window.pageYOffset;
+          const pageLeft = cellRect.right + window.pageXOffset;
+
+          // 3. データの取得
+          const option1Value = document.querySelector(
+            'input[name="option1"]:checked',
+          ).value;
+          const option2Value = document.querySelector(
+            'input[name="option2"]:checked',
+          ).value;
+          const csvFile = getResultCsvFile(option1Value, "option2_personal");
+
+          await searchplayerOverall(csvFile, playerName);
+
+          // --- 4. ★【ここが最重要】流し込み関数を使わず、その場で独立したHTMLを組み立てる ---
+          const lines = search_result.trim().split("\n");
+          if (lines.length === 0 || !lines) return;
+
+          // テーブルの外枠を生成
+          let popupHTML = `<table id="dynamicPlayerPopup" class="player-popup-container" style="top: ${pageTop}px; left: ${pageLeft + 150}px;">`;
+
+          // ヘッダー行の組み立て
+          const cols = lines[0].split(",");
+          popupHTML += "<thead><tr>";
+          for (const item of cols) {
+            popupHTML += `<th style="background: #e0e0e0;">${item.trim()}</th>`;
+          }
+          popupHTML += "</tr></thead><tbody>";
+
+          // データ行の組み立て
+          for (let i = 1; i < lines.length; i++) {
+            if (!lines[i]) continue;
+            const bodyCols = lines[i].split(",");
+            popupHTML += "<tr>";
+            for (const item of bodyCols) {
+              popupHTML += `<td style="background: #ffffff;">${item.trim()}</td>`;
+            }
+            popupHTML += "</tr>";
+          }
+          popupHTML += "</tbody></table>";
+
+          // 5. 組み立てた「完全独立テーブル」を、総合テーブルとは全く無関係な body の直下に一瞬で挿入する
+          document.body.insertAdjacentHTML("beforeend", popupHTML);
+
+          // イベントの伝播を止めて、自動で消えるのを防ぐ
+          event.stopPropagation();
+        };
+        /***
+          const overallTable = document.getElementById("overallTable");
+
           // クリックされたセルが「選手名（clickable-player）」かチェック
           const cell = event.target.closest(".clickable-player");
           if (!cell) return; // 選手名以外のクリックは無視
@@ -1533,10 +1662,20 @@
           await searchplayerOverall(csvFile, playerName);
           resultDisplayTableSet("playerHeader", "playerBody", search_result);
 
-          // 1. 選手成績のテーブルを表示する
-          const playerTable = document.getElementById("playerTable");
-          playerTable.style.display = "table";
+          // 2. ★位置計算は一切不要！全体を囲むラッパー（div）を表示するだけ
+          // これにより、総合テーブルと同じ高さ（真横）に自然に、絶対にズレずに並びます。
+          const wrapper = document.getElementById("playerTableWrapper");
+          wrapper.style.display = "block";
         };
+        ***/
+
+        // ★【追加機能】選手成績テーブル以外の場所をクリックしたら自動で閉じる（非表示）
+        document.addEventListener("click", function (event) {
+          const popup = document.getElementById("dynamicPlayerPopup");
+          if (popup && !popup.contains(event.target)) {
+            popup.remove();
+          }
+        });
       }
     </script>
   </body>
