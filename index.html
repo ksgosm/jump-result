@@ -22,6 +22,14 @@
       }
     </style>
 
+    <div class="data-version" style="display: flex; justify-content: flex-end; align-items: center; gap: 2px;">
+      <p style="font-size: 13px; margin: 0">
+        データ更新日：
+      </p>
+      <div id="date-view" style="font-size: 13px; margin: 0;"></div>
+      <span id="folderNameDisplay" style="display: none"></span>
+    </div>
+
     <div class="folder-select-row">
       <p style="font-size: 13px; margin: 0">
         データ保存フォルダを選択してください：
@@ -317,34 +325,34 @@
       検索
     </button>
 
-<div class="table-responsive-wrapper" id="dispTableWrapper" style="display: none;">
-  <table id="dispTable" style="margin-bottom: 8px">
-    <thead>
-      <tr id="tableHeader"></tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
-</div>
+    <div class="table-responsive-wrapper" id="dispTableWrapper" style="display: none;">
+      <table id="dispTable" style="margin-bottom: 8px">
+        <thead>
+          <tr id="tableHeader"></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
 
-<div class="table-responsive-wrapper" id="dispTable1Wrapper" style="display: none;">
-  <table id="dispTable1">
-    <thead>
-      <tr id="tableHeader1"></tr>
-    </thead>
-    <tbody id="tableBody1"></tbody>
-  </table>
-</div>
+    <div class="table-responsive-wrapper" id="dispTable1Wrapper" style="display: none;">
+      <table id="dispTable1">
+        <thead>
+          <tr id="tableHeader1"></tr>
+        </thead>
+        <tbody id="tableBody1"></tbody>
+      </table>
+    </div>
 
     <!-- 総合順位と個人成績（この中に2つを並べます） -->
     <!-- 総合順位テーブル（これだけを残します） -->
-<div class="table-overall" id="overallTableWrapper" style="display: none;">
-  <table id="overallTable">
-    <thead>
-      <tr id="overallHeader"></tr>
-    </thead>
-    <tbody id="overallBody"></tbody>
-  </table>
-</div>
+    <div class="table-overall" id="overallTableWrapper" style="display: none;">
+      <table id="overallTable">
+        <thead>
+          <tr id="overallHeader"></tr>
+        </thead>
+        <tbody id="overallBody"></tbody>
+      </table>
+    </div>
 
     <style>
       html {
@@ -377,14 +385,6 @@
         clear: both;             /* 周りの要素の回り込みを完全に防止 */
       }
 
-      /**
-      #dispTable,
-      #dispTable1 {
-        width: auto; 
-        border-collapse: collapse;
-        max-width: 100%; 
-      }
-      **/
       #dispTable,
       #dispTable1,
       #overallTable {
@@ -403,36 +403,6 @@
         white-space: nowrap; /* 文字を自動改行させず、1行に収める */
         width: auto; /* 列幅を中身に合わせる */
       }
-
-      /* 総合順位テーブルを囲む親要素 */
-      /**
-      .table-overall {
-        display: flex;
-        width: 100%;
-      }
-      
-      .table-overall {
-        display: block;  
-        width: 100%;    
-        overflow-x: auto;     
-        margin-bottom: 24px;   
-        text-align: left;    
-      }
-      **/
-
-      /* 総合順位テーブル */
-      /**
-      #overallTable {
-        width: auto;
-        border-collapse: collapse;
-      }
-      
-      #overallTable {
-        width: auto;             
-        border-collapse: collapse;
-        max-width: 100%;         
-      }
-      **/
 
       /* 選手成績ポップアップ（総合テーブルとは別の次元にJavaScriptで作り出します） */
       .player-popup-container {
@@ -453,15 +423,6 @@
         width: auto;
       }
 
-      /* 選手名リンクの見た目 */
-      /**
-      .clickable-player {
-        cursor: pointer;
-        color: #0066cc;
-        text-decoration: underline;
-      }
-  **/
-
       /* 選手名の列にマウスを乗せたら指マークにして、少し背景を変える設定 */
       .clickable-name {
         cursor: pointer;
@@ -475,6 +436,22 @@
     </style>
 
     <script>
+      let version;
+
+      fetch('data/version.txt') // サーバ上のファイルパス
+        .then(response => response.text())
+        .then(text => {
+        const cleanText = text.trim(); // 前後の空白や改行を消す
+        // yyyymmdd (8桁の数字) を yyyy/mm/dd に変換
+        const formatted = cleanText.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1/$2/$3');
+        document.getElementById('date-view').textContent = formatted;
+        version = cleanText;
+      })
+      .catch(error => {
+        document.getElementById('date-view').textContent = '読み込みエラー';
+      });
+
+
       // 検索オプション1 大会区分
       const OPTION1_VALUE_JP = "1";
       const OPTION1_VALUE_WC = "2";
@@ -503,6 +480,7 @@
 
       let directoryHandle;
 
+      
       async function dataDownLoad() {
         return new Promise((resolve, reject) => {
           //  statusDiv.innerHTML = "2. サーバーから最新の圧縮ファイルを取得中...";
